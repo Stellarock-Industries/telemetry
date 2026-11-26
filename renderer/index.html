@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stellarock Telemetry</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><img class="logo" src="logo.png" alt="" width="36" height="36"><div class="wm"><span class="wm-name">STELLAROCK</span><span class="wm-sub">INDUSTRIES · TELEMETRY <small id="ver"></small></span></div></div>
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="dash" role="tab">Dashboard</button>
+    <button class="tab" data-tab="org" role="tab">Org <span class="tab-count" id="orgCount" hidden></span></button>
+    <button class="tab" data-tab="setup" role="tab">Setup</button>
+  </nav>
+  <div class="pills"><button class="pill pill-btn" id="guideBtn" type="button">Setup guide ↗</button><span class="pill" id="pill-game">Game: …</span><span class="pill" id="pill-site">Site: …</span></div>
+</header>
+
+<main id="dash" class="view">
+  <div id="dash-empty" class="notice" hidden></div>
+  <div id="dash-grid" class="grid"></div>
+</main>
+
+<main id="org" class="view" hidden>
+  <div id="org-msg" class="notice" hidden></div>
+  <section id="org-ships" hidden><h2 class="sec">Ships in use</h2><div id="org-ship-grid" class="grid ships"></div></section>
+  <section><h2 class="sec">Online members</h2><div id="org-grid" class="grid members"></div></section>
+  <p class="muted small">Members choose what to share. Health and other vitals only appear for members who ticked <em>Vitals &amp; environment</em>; by default others see only online status, ship and seat.</p>
+</main>
+
+<main id="setup" class="view" hidden>
+  <div class="notice guide-note">New here? <button id="openGuide" class="btn">Open the setup guide</button><span id="guideMsg" class="msg"></span></div>
+  <section class="panel">
+    <h2><span class="eyebrow">01 / Link</span>Connect to your website</h2>
+    <label for="siteUrl">Website address</label>
+    <input id="siteUrl" type="url" placeholder="https://jackodev.uk" autocomplete="off" spellcheck="false">
+    <label for="token">Device token <span class="muted">(from Account → Game telemetry)</span></label>
+    <input id="token" type="password" placeholder="sctd1.…" autocomplete="off" spellcheck="false">
+    <p class="muted" id="tokenState"></p>
+    <div class="row"><button id="saveLink" class="btn primary">Save &amp; test connection</button><span id="linkMsg" class="msg"></span></div>
+    <p class="muted">The token never leaves this PC in the clear: every upload is signed with it, the site address must be HTTPS, and the token is stored encrypted with Windows.</p>
+  </section>
+
+  <section class="panel">
+    <h2><span class="eyebrow">02 / Privacy</span>What gets shared</h2>
+    <label class="check"><input type="radio" name="mode" value="full"> Upload everything to my private page <span class="muted">(others only see what is ticked below)</span></label>
+    <label class="check"><input type="radio" name="mode" value="shared"> Upload only what I share with the org <span class="muted">(vitals, wallet, flight data never leave this PC unless ticked)</span></label>
+    <div id="prefs" class="prefs"></div>
+    <div class="row"><button id="savePrefs" class="btn">Save sharing</button><span id="prefMsg" class="msg"></span></div>
+  </section>
+
+  <section class="panel">
+    <h2><span class="eyebrow">03 / Game</span>Game telemetry</h2>
+    <p class="muted">Star Citizen 5.0 can run a telemetry server on this PC (127.0.0.1:2942). It is unofficial and may change between patches. The app needs the game’s <code>.proto</code> schema files to read it.</p>
+    <div class="row"><button id="dlSchema" class="btn">Download schema</button><button id="openSchema" class="btn">Open schema folder</button><button id="reloadSchema" class="btn">Reload</button><span id="schemaMsg" class="msg"></span></div>
+    <hr>
+    <p class="muted">Switch the game’s telemetry server on in your <code>user.cfg</code> (choose your <code>PTU</code> or <code>LIVE</code> folder — telemetry is a 5.0 feature) (a backup is made first). Restart the game afterwards.</p>
+    <div class="row"><select id="dirSel" class="btn" aria-label="Game folder" hidden></select><button id="pickDir" class="btn">Choose game folder</button><button id="cfgOn" class="btn">Enable in user.cfg</button><button id="cfgOff" class="btn">Disable</button></div>
+    <p class="muted" id="cfgState"></p>
+  </section>
+</main>
+<script src="renderer.js"></script>
+</body>
+</html>
