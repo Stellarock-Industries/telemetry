@@ -134,5 +134,29 @@ async function t(name, fn) { try { await fn(); console.log('PASS ' + name); } ca
       const after = await (await fetch(process.env.TEL_SITE + '/telemetry/data/', { headers: { Cookie: 'sc_sess=' + process.env.TEL_SESS } })).json(); assert.strictEqual(after.online, false);
     });
   }
+
+  const TelUI = require('../renderer/tel-ui.js');
+  await t('ui kit: ship name / serial / manufacturer parsing', () => {
+    let i = TelUI.shipInfo({ name: 'GLSN_Shiv_955867376956', class: 'GLSN_Shiv', type: 'Spaceship' });
+    assert.deepStrictEqual([i.maker, i.name, i.serial, i.type], ['Gallenson Tactical Systems', 'Shiv', '955867376956', 'Spaceship']);
+    i = TelUI.shipInfo({ name: 'sabre_raven_ex_23942398489489249234', type: 'Spaceship' });
+    assert.deepStrictEqual([i.name, i.serial], ['Sabre Raven Ex', '23942398489489249234']);
+    i = TelUI.shipInfo({ name: 'AEGS_Sabre_Raven_Ex_123456', manufacturer: '' }); assert.deepStrictEqual([i.maker, i.name, i.serial], ['Aegis Dynamics', 'Sabre Raven Ex', '123456']);
+    i = TelUI.shipInfo({ name: 'MPUV_Cargo' }); assert.strictEqual(i.name, 'MPUV Cargo'); assert.strictEqual(i.maker, '');   // unknown 4-letter prefix is NOT stripped
+    assert.strictEqual(TelUI.shipInfo({ name: 'X', manufacturer: 'Real Maker' }).maker, 'Real Maker'); assert.strictEqual(TelUI.shipInfo(null).name, 'Unknown ship');
+  });
+  await t('ui kit: weapon names, distances', () => {
+    assert.strictEqual(TelUI.weaponName('GLSN_BallisticGatling_S4_955867377080'), 'Ballistic Gatling S4'); assert.strictEqual(TelUI.weaponName(''), 'Weapon');
+    assert.strictEqual(TelUI.dist(3.4028234663852886e38), null); assert.strictEqual(TelUI.dist(1e9), null); assert.deepStrictEqual(TelUI.dist(5.99), ['6', 'm']); assert.deepStrictEqual(TelUI.dist(12400), ['12.4', 'km']);
+  });
+  await t('mapper: the game\'s FLT_MAX "no value" altitude is dropped', () => {
+    const m = mapFrame({ vehicle: { state: { name: 'X', flight: { instruments: { altitude: 3.4028234663852886e38, radar_altitude: 5.99, speed: 0 } } } } });
+    assert.strictEqual(m.ship.flight.altitude, undefined); assert.strictEqual(m.ship.flight.radar_altitude, 5.99);
+  });
+  await t('ui kit: website copy is identical to the app copy', () => {
+    const fs = require('fs'), path = require('path'), site = path.join(__dirname, '..', '..', 'public', 'assets');
+    if (!fs.existsSync(site)) return;                                    // the app was unzipped on its own
+    for (const [a, b] of [['js/tel-ui.js', 'renderer/tel-ui.js'], ['css/tel-ui.css', 'renderer/tel-ui.css']]) assert.strictEqual(fs.readFileSync(path.join(site, a), 'utf8'), fs.readFileSync(path.join(__dirname, '..', b), 'utf8'), a + ' differs from the app copy');
+  });
   console.log(failed ? '\n' + failed + ' FAILED' : '\nALL PASSED'); process.exit(failed ? 1 : 0);
 })();

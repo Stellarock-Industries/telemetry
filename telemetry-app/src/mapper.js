@@ -6,7 +6,9 @@
  * Every frame is a full snapshot, so sections that are missing are removed, not carried over.
  */
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
-const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+// The game sends float "no value" markers (FLT_MAX, about 3.4e38) for things that do not exist here - e.g. altitude inside a station hangar. Never forward those.
+const num = (v) => (typeof v === 'number' && Number.isFinite(v) && Math.abs(v) < 1e30 ? v : undefined);
+const near = (v) => { const n = num(v); return n !== undefined && Math.abs(n) < 1e9 ? n : undefined; };   // flight instruments: anything beyond 1e9 m (or m/s, G...) is a marker, not a reading
 const pct = (v) => (num(v) === undefined ? undefined : Math.round(v * 1000) / 10);          // 0..1 -> percent
 const gaugePct = (g) => (isObj(g) && num(g.max) > 0 ? Math.round((g.current / g.max) * 1000) / 10 : undefined);
 const enumName = (v, prefix) => {
@@ -54,11 +56,11 @@ function mapShip(vf) {
     const st = isObj(fl.state) ? fl.state : {}, ins = isObj(fl.instruments) ? fl.instruments : {}, f = {};
     if (typeof st.is_landed === 'boolean') out.landed = st.is_landed;
     put(out, 'gear', enumName(st.gear, 'VEHICLE_COMPONENT_DEPLOYMENT_STATE_')); put(out, 'vtol', enumName(st.vtol, 'VEHICLE_COMPONENT_DEPLOYMENT_STATE_'));
-    put(f, 'speed', num(ins.speed)); put(f, 'fuel_h2', pct(ins.hydrogen_fuel)); put(f, 'fuel_qt', pct(ins.quantum_fuel));
-    if (isObj(ins.g_meter)) put(f, 'gforce', num(ins.g_meter.current));
+    put(f, 'speed', near(ins.speed)); put(f, 'fuel_h2', pct(ins.hydrogen_fuel)); put(f, 'fuel_qt', pct(ins.quantum_fuel));
+    if (isObj(ins.g_meter)) put(f, 'gforce', near(ins.g_meter.current));
     if (isObj(ins.boost)) f.boost = !!ins.boost.engaged;
-    put(f, 'altitude', num(ins.altitude)); put(f, 'radar_altitude', num(ins.radar_altitude)); put(f, 'vspeed', num(ins.vertical_speed_indicator));
-    put(f, 'air_density', num(ins.atmospheric_density)); put(f, 'heading', num(ins.heading));
+    put(f, 'altitude', near(ins.altitude)); put(f, 'radar_altitude', near(ins.radar_altitude)); put(f, 'vspeed', near(ins.vertical_speed_indicator));
+    put(f, 'air_density', near(ins.atmospheric_density)); put(f, 'heading', near(ins.heading));
     if (isObj(fl.settings)) {          // every flight-assist toggle: Availability{enabled,active} -> ACTIVE / ENABLED / OFF, plain bools stay bools
       const a = {};
       for (const [k, v] of Object.entries(fl.settings)) {

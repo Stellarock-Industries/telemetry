@@ -5,6 +5,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Stellarock Telemetry</title>
+<link rel="stylesheet" href="tel-ui.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,6 +14,7 @@
   <nav class="tabs" role="tablist">
     <button class="tab active" data-tab="dash" role="tab">Dashboard</button>
     <button class="tab" data-tab="org" role="tab">Org <span class="tab-count" id="orgCount" hidden></span></button>
+    <button class="tab" data-tab="events" role="tab">Events</button>
     <button class="tab" data-tab="setup" role="tab">Setup</button>
   </nav>
   <div class="pills"><button class="pill pill-btn" id="guideBtn" type="button">Setup guide ↗</button><span class="pill" id="pill-game">Game: …</span><span class="pill" id="pill-site">Site: …</span></div>
@@ -20,7 +22,14 @@
 
 <main id="dash" class="view">
   <div id="dash-empty" class="notice" hidden></div>
+  <div id="dash-strip"></div>
   <div id="dash-grid" class="grid"></div>
+</main>
+
+<main id="events" class="view" hidden>
+  <h2 class="sec">Recent events</h2>
+  <div id="events-list"></div>
+  <p id="events-empty" class="muted small">No events yet. They appear when you spawn, respawn, get downed, die or sit down / stand up.</p>
 </main>
 
 <main id="org" class="view" hidden>
@@ -61,6 +70,7 @@
     <p class="muted" id="cfgState"></p>
   </section>
 </main>
+<script src="tel-ui.js"></script>
 <script src="renderer.js"></script>
 </body>
 </html>

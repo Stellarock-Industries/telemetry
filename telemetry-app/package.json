@@ -1,7 +1,7 @@
 {
   "name": "stellarock-telemetry",
   "productName": "Stellarock Telemetry",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Desktop companion that reads Star Citizen 5.0 telemetry on your PC and securely shares it with your org website.",
   "main": "main.js",
   "author": "Stellarock Industries",
@@ -44,8 +44,13 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico"
-    }
+      "uninstallerIcon": "build/icon.ico",
+      "artifactName": "Stellarock-Telemetry-Setup.exe"
+    },
+    "portable": {
+      "artifactName": "Stellarock-Telemetry-Portable.exe"
+    },
+    "publish": null
   },
   "engines": {
     "node": ">=20"
