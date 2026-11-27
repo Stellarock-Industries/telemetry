@@ -7,6 +7,10 @@
   "author": "Stellarock Industries",
   "license": "UNLICENSED",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Stellarock-Industries/telemetry.git"
+  },
   "scripts": {
     "start": "electron .",
     "test": "node test/run-tests.js",
@@ -53,7 +57,10 @@
     },
     "publish": [
       {
-        "provider": "github"
+        "provider": "github",
+        "owner": "Stellarock-Industries",
+        "repo": "telemetry",
+        "channel": "latest"
       }
     ]
   },
