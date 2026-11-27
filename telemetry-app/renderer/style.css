@@ -85,3 +85,18 @@ select.btn { flex:1 1 12rem; min-width:0; }
 .filters { display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:1rem; } .filters select { flex:0 1 14rem; }
 .pdot { display:inline-block; width:.6rem; height:.6rem; border-radius:50%; background:#5b6470; margin-right:.45rem; } .pdot.game { background:var(--ok); } .pdot.site { background:var(--gold); }
 .member.web .mname { font-size:.95rem; }
+/* chat */
+.chatbox { display:grid; grid-template-columns:10rem minmax(0,1fr); border:1px solid var(--line, #2a2d33); border-radius:.6rem; overflow:hidden; height:calc(100vh - 11rem); min-height:18rem; }
+.chat-channels { border-right:1px solid var(--line, #2a2d33); padding:.4rem; overflow:auto; display:flex; flex-direction:column; gap:.15rem; }
+.chat-ch { display:flex; justify-content:space-between; align-items:center; background:none; border:0; color:inherit; text-align:left; padding:.35rem .5rem; border-radius:.4rem; cursor:pointer; font:inherit; }
+.chat-ch:hover { background:rgba(255,255,255,.06); } .chat-ch.active { background:rgba(212,167,58,.16); color:var(--gold); }
+.chat-unread { width:.5rem; height:.5rem; border-radius:50%; background:var(--gold); }
+.chat-main { display:flex; flex-direction:column; min-width:0; min-height:0; }
+.chat-head { padding:.5rem .8rem; border-bottom:1px solid var(--line, #2a2d33); }
+.chat-log { flex:1; overflow:auto; padding:.4rem .8rem; }
+.chat-msg { padding:.25rem 0; } .chat-meta { display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; font-size:.82rem; }
+.chat-name { color:var(--gold); } .chat-msg.mine .chat-name { color:#3ddc84; } .chat-time { opacity:.6; font-size:.7rem; }
+.chat-src { font-size:.62rem; padding:0 .35rem; border-radius:.3rem; background:#5865f2; color:#fff; }
+.chat-body { white-space:pre-wrap; overflow-wrap:anywhere; }
+.chat-form { display:flex; gap:.5rem; padding:.5rem; border-top:1px solid var(--line, #2a2d33); } .chat-form textarea { flex:1; resize:none; background:transparent; color:inherit; border:1px solid var(--line, #2a2d33); border-radius:.4rem; padding:.4rem .5rem; font:inherit; }
+.chat-err { color:#ff6b6b; padding:0 .8rem .5rem; }

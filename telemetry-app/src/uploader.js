@@ -61,6 +61,9 @@ class Uploader extends EventEmitter {
   async hello() { return this.send({ type: 'hello', app_version: this.appVersion }); }
   /** Online members as this member is allowed to see them (the site applies every member's sharing rules). */
   async roster() { return this.send({ type: 'roster', app_version: this.appVersion }); }
+  async chatChannels() { return this.send({ type: 'chat_channels', app_version: this.appVersion }); }
+  async chatFetch(channel, after) { return this.send({ type: 'chat_fetch', channel, after: after || 0, app_version: this.appVersion }); }
+  async chatSend(channel, body) { return this.send({ type: 'chat_send', channel, body, app_version: this.appVersion }); }
   async setPrefs(prefs) { return this.send({ type: 'prefs', prefs, app_version: this.appVersion }); }
 
   async tick() {

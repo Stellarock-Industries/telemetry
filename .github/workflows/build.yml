@@ -4,11 +4,15 @@ name: Build Windows app
 on:
   workflow_dispatch:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 permissions:
   contents: write
+
+concurrency:
+  group: stellarock-telemetry-release
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -17,6 +21,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -30,6 +36,37 @@ jobs:
       - name: Run tests
         working-directory: telemetry-app
         run: npm test
+
+      - name: Increment application version
+        shell: pwsh
+        working-directory: telemetry-app
+        run: |
+          npm version patch --no-git-tag-version
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to increment application version"
+          }
+
+          $version = node -p "require('./package.json').version"
+          $tag = "v$version"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add package.json package-lock.json
+          git commit -m "Release $tag"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to commit version changes"
+          }
+
+          git tag -a $tag -m "Release $tag"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to create release tag"
+          }
+
+          "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
 
       - name: Build application
         working-directory: telemetry-app
@@ -49,6 +86,11 @@ jobs:
             "$($hash.Hash.ToLower())  $($_.Name)"
           } | Out-File "telemetry-app/dist/SHA256SUMS.txt" -Encoding ascii
 
+      - name: Push version commit and tag
+        shell: pwsh
+        run: |
+          git push origin HEAD:main "refs/tags/$env:RELEASE_TAG"
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v6
         with:
@@ -58,11 +100,10 @@ jobs:
             telemetry-app/dist/SHA256SUMS.txt
 
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Stellarock Telemetry ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Stellarock Telemetry ${{ env.RELEASE_TAG }}
           generate_release_notes: true
           files: |
             telemetry-app/dist/*.exe

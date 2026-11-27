@@ -10,7 +10,8 @@ let prefs = null;
 let orgTimer = null;
 document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => {
   document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('active', x === b));
-  ['dash', 'org', 'events', 'setup'].forEach((id) => { $(id).hidden = b.dataset.tab !== id; });
+  ['dash', 'org', 'chat', 'events', 'setup'].forEach((id) => { $(id).hidden = b.dataset.tab !== id; });
+  chatOpen = b.dataset.tab === 'chat'; if (chatOpen) { chatSeen = {}; chatLast = 0; $('chat-log').textContent = ''; chatLoad(true); }
   clearInterval(orgTimer); if (b.dataset.tab === 'org') { loadOrg(); orgTimer = setInterval(loadOrg, 5000); }   // only talk to the site while the tab is open
 }));
 
@@ -29,7 +30,7 @@ function memberCard(m, mine) {
 }
 let orgLast = null;
 function fillSel(sel, label, vals) { const cur = sel.value; sel.textContent = ''; const o = el('option', '', label); o.value = ''; sel.appendChild(o); vals.forEach((v) => { const x = el('option', '', v); x.value = v; sel.appendChild(x); }); sel.value = vals.includes(cur) ? cur : ''; }
-const orgKeep = (m) => (!$('orgDiv').value || m.division === $('orgDiv').value) && (!$('orgTeam').value || (m.teams || []).includes($('orgTeam').value));
+const orgKeep = (m) => (!$('orgDiv').value || (m.divisions || [m.division]).includes($('orgDiv').value)) && (!$('orgTeam').value || (m.teams || []).includes($('orgTeam').value));
 function webCard(m) {
   const c = el('div', 'card member web' + (m.me ? ' with-me' : '')), head = el('div', 'mhead'); head.appendChild(el('span', 'avatar', initials(m.name)));
   const t = el('div', 'mtitle'), n = el('div', 'mname'); n.appendChild(el('span', 'pdot site')); n.appendChild(document.createTextNode(m.name + (m.me ? ' (you)' : ''))); t.appendChild(n);
@@ -68,7 +69,7 @@ function say(id, text, ok) { const m = $(id); m.textContent = text || ''; m.clas
 function renderMe(me) {
   const c = $('me-chip'); c.textContent = ''; if (!me || !me.name) { c.hidden = true; return; }
   c.hidden = false; c.appendChild(el('b', '', me.name)); if (me.rank) c.appendChild(T.rank(me.rank.name, me.rank.color));
-  const extra = [me.division].concat(me.teams || []).filter(Boolean).join(' · '); if (extra) c.appendChild(el('span', '', extra));
+  const extra = (me.divisions || [me.division]).concat(me.teams || []).filter(Boolean).join(' · '); if (extra) c.appendChild(el('span', '', extra));
   c.title = 'Rank, division and teams are set by the site, not by this app.' + (me.perms && me.perms.length ? ' Permissions: ' + me.perms.length : '');
 }
 function renderStatus(s) {
@@ -165,3 +166,53 @@ $('envOff').addEventListener('click', async () => { const r = await window.sct.e
 window.sct.onUpdate(renderUpdate); window.sct.updateGet().then(renderUpdate); refreshEnv();
 window.sct.onStatus(renderStatus); window.sct.onState(renderDash);
 window.sct.info().then((i) => { $('ver').textContent = 'v' + i.version; applySettings(i.settings); renderStatus(i.status); refreshCfg(); if (!i.settings.hasToken) document.querySelector('[data-tab=setup]').click(); });
+
+
+// ---------- Chat (same channels and rules as the website) ----------
+let chatOpen = false, chatCur = 0, chatLast = 0, chatSeen = {}, chatBusy = false, chatMod = false;
+const chatErr = (t) => { $('chat-err').textContent = t || ''; $('chat-err').hidden = !t; };
+function chatDraw(chs) {
+  const box = $('chat-channels'); box.textContent = '';
+  let unread = 0;
+  chs.forEach((c) => {
+    const b = el('button', 'chat-ch' + (c.id === chatCur ? ' active' : ''), '# ' + c.name); b.type = 'button';
+    if (c.unread && !(chatOpen && c.id === chatCur)) { b.appendChild(el('span', 'chat-unread')); unread++; }
+    b.addEventListener('click', () => { chatCur = c.id; chatLast = 0; chatSeen = {}; $('chat-log').textContent = ''; chatErr(''); chatLoad(true); });
+    box.appendChild(b);
+  });
+  const cc = $('chatCount'); cc.hidden = !unread; cc.textContent = unread;
+}
+function chatAdd(m) {
+  if (chatSeen[m.id]) return; chatSeen[m.id] = 1; chatLast = Math.max(chatLast, m.id);
+  const row = el('div', 'chat-msg' + (m.mine ? ' mine' : '')), head = el('div', 'chat-meta');
+  head.appendChild(el('strong', 'chat-name', m.name));
+  if (m.rank) head.appendChild(window.TelUI ? TelUI.rank(m.rank, m.rank_color) : el('span', 'tel-rank', m.rank));
+  if (m.source === 'discord') head.appendChild(el('span', 'chat-src', 'Discord'));
+  head.appendChild(el('span', 'chat-time', new Date(m.t * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })));
+  row.appendChild(head); row.appendChild(el('div', 'chat-body', m.body)); $('chat-log').appendChild(row);
+}
+async function chatLoad(first) {
+  if (chatBusy) return; chatBusy = true;
+  try {
+    const nm = $('chat-msg');
+    if (!chatCur || first) {
+      const r = await window.sct.chatChannels(); nm.hidden = r.ok; if (!r.ok) { nm.textContent = r.error; return; }
+      if (!r.channels.some((c) => c.id === chatCur)) { chatCur = r.channels.length ? r.channels[0].id : 0; chatLast = 0; chatSeen = {}; $('chat-log').textContent = ''; }
+      chatDraw(r.channels);
+      if (!chatCur) { $('chat-title').textContent = 'No channels'; $('chat-form').hidden = true; return; }
+    }
+    if (!chatOpen) return;
+    const r = await window.sct.chatFetch(chatCur, chatLast); if (!r.ok) { nm.hidden = false; nm.textContent = r.error; return; } nm.hidden = true;
+    $('chat-title').textContent = '# ' + r.channel.name; $('chat-desc').textContent = r.channel.description || ''; $('chat-form').hidden = !r.channel.can_write;
+    const log = $('chat-log'), stick = first || log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+    r.messages.forEach(chatAdd); if (stick) log.scrollTop = log.scrollHeight;
+  } finally { chatBusy = false; }
+}
+$('chat-form').addEventListener('submit', async (e) => {
+  e.preventDefault(); const inp = $('chat-input'), body = inp.value.trim(); if (!body || !chatCur) return; $('chat-send').disabled = true; chatErr('');
+  const r = await window.sct.chatSend(chatCur, body); $('chat-send').disabled = false;
+  if (!r.ok) { chatErr(r.error); return; } inp.value = ''; chatAdd(r.message); $('chat-log').scrollTop = $('chat-log').scrollHeight;
+});
+$('chat-input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('chat-form').requestSubmit(); } });
+setInterval(() => { if (chatOpen) chatLoad(false); }, 4000);                            // open: ~15 req/min
+setInterval(() => { if (!chatOpen && document.getElementById('chat')) window.sct.chatChannels().then((r) => { if (r.ok) chatDraw(r.channels); }).catch(() => {}); }, 20000);   // closed: unread badge only

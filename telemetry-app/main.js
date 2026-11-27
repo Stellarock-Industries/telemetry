@@ -78,6 +78,10 @@ function registerIpc() {
     try { uploader.clearFatal(); const r = await uploader.hello(); status.user = r.user; status.prefs = r.prefs; if (r.me && r.me.name) status.me = r.me; status.site = { ok: true, text: 'Linked as ' + r.user }; send('status', status); return { ok: true, user: r.user, prefs: r.prefs }; }
     catch (e) { return { ok: false, error: e.message }; }
   });
+  const chatCall = (fn) => async (_e, ...a) => { try { return Object.assign({ ok: true }, await fn(...a)); } catch (e) { return { ok: false, error: /unknown type/i.test(e.message) ? 'Your website is running an older version without chat. Ask a leader to update the site.' : e.message }; } };
+  ipcMain.handle('chat:channels', chatCall(() => uploader.chatChannels()));
+  ipcMain.handle('chat:fetch', chatCall((c, after) => uploader.chatFetch(Number(c) | 0, Number(after) | 0)));
+  ipcMain.handle('chat:send', chatCall((c, body) => uploader.chatSend(Number(c) | 0, String(body || '').slice(0, 800))));
   ipcMain.handle('roster:get', async () => { try { const r = await uploader.roster(); return { ok: true, members: r.members || [], ships: r.ships || [], myKey: r.my_key || null, web: r.web || [], divisions: r.divisions || [], teams: r.teams || [] }; } catch (e) { return { ok: false, error: /unknown type/i.test(e.message) ? 'Your website is running an older version that cannot list online members yet. Ask a leader to update the site (src/telemetry.php and public/api/telemetry/index.php).' : e.message }; } });
   ipcMain.handle('prefs:save', async (_e, prefs) => {
     try { const r = await uploader.setPrefs(prefs); status.prefs = r.prefs; send('status', status); return { ok: true, prefs: r.prefs }; } catch (e) { return { ok: false, error: e.message }; }

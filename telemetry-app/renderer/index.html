@@ -14,6 +14,7 @@
   <nav class="tabs" role="tablist">
     <button class="tab active" data-tab="dash" role="tab">Dashboard</button>
     <button class="tab" data-tab="org" role="tab">Org <span class="tab-count" id="orgCount" hidden></span></button>
+    <button class="tab" data-tab="chat" role="tab">Chat <span class="tab-count" id="chatCount" hidden></span></button>
     <button class="tab" data-tab="events" role="tab">Events</button>
     <button class="tab" data-tab="setup" role="tab">Setup</button>
   </nav>
@@ -25,6 +26,17 @@
   <div id="dash-empty" class="notice" hidden></div>
   <div id="dash-strip"></div>
   <div id="dash-grid" class="grid"></div>
+</main>
+
+<main id="chat" class="view" hidden>
+  <div id="chat-msg" class="notice" hidden></div>
+  <div class="chatbox">
+    <nav class="chat-channels" id="chat-channels" aria-label="Channels"></nav>
+    <section class="chat-main"><header class="chat-head"><strong id="chat-title">Chat</strong> <span class="muted small" id="chat-desc"></span></header>
+      <div class="chat-log" id="chat-log"></div>
+      <form class="chat-form" id="chat-form" autocomplete="off"><textarea id="chat-input" rows="1" maxlength="800" placeholder="Message…" aria-label="Message"></textarea><button class="btn primary" type="submit" id="chat-send">Send</button></form>
+      <div class="small chat-err" id="chat-err" hidden></div></section>
+  </div>
 </main>
 
 <main id="events" class="view" hidden>

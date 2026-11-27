@@ -98,7 +98,7 @@
   /* ------------------------------------------------------------------ bars */
   /** Division + team chips for a member ({division, teams}); null when there is nothing to show. */
   function chips(m) {
-    const w = el('div', 'tel-chips'); if (m.division) w.appendChild(el('span', 'tel-chip div', m.division));
+    const w = el('div', 'tel-chips'); (m.divisions || (m.division ? [m.division] : [])).forEach(function (d) { w.appendChild(el('span', 'tel-chip div', d)); });
     (m.teams || []).forEach(function (t) { w.appendChild(el('span', 'tel-chip', t)); });
     return w.childNodes.length ? w : null;
   }
