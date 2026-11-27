@@ -41,3 +41,14 @@ Stable download links (set once in the website's Admin → Telemetry app):
 - `https://github.com/<you>/<repo>/releases/latest/download/Stellarock-Telemetry-Portable.exe`
 
 This file layout assumes the repo root is this `telemetry-app` folder. Pushes that only change `.md` files do not trigger a build.
+
+## Self-updating
+
+- **Installed (Setup .exe) build:** checks GitHub Releases at start and every 30 minutes (and whenever the website says a newer version exists), downloads the update in the background and shows **Restart & update**. It also installs when the app is next closed.
+- **Portable build / running from source:** cannot replace itself; it shows a banner with a link to the website's download button.
+- **Website:** set the repository (`owner/name`) in Admin → Telemetry app. The download buttons then always serve the newest release, and an optional **oldest version allowed** makes the site refuse older apps (they are told to update).
+- Releases are unsigned; the updater verifies the SHA-512 in `latest.yml` but Windows code-signing would be needed for publisher verification.
+
+## Windows environment variable
+
+Setup → Game telemetry → **Set variable** runs the equivalent of `setx GRPC_CLIENT_SERVER_ENABLED true` (only that fixed name/value). Restart the RSI Launcher and the game afterwards.

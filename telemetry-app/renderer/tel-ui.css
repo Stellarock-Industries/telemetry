@@ -116,3 +116,8 @@
 .lungs-bad .lungs-lobe { fill:rgba(255,82,82,.28); stroke:#ff5252; } .lungs-bad .lungs-line { stroke:#ff5252; } .lungs-bad .dial-sub { color:#ff5252; }
 .lungs-na .lungs-lobe { fill:rgba(140,140,140,.2); stroke:#777; } .lungs-na .lungs-line { stroke:#777; }
 @media (prefers-reduced-motion:reduce) { .ann-bad { animation:none; } .tgl-sw i, .hpbar-fill, .meter-fill { transition:none; } }
+
+.tel-chips { display:flex; flex-wrap:wrap; gap:.25rem; margin-top:.25rem; }
+.tel-chip { display:inline-block; font-size:.68rem; padding:.05rem .45rem; border-radius:999px; border:1px solid rgba(255,255,255,.18); color:#9aa8b8; white-space:nowrap; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
+.tel-chip.div { border-color:rgba(212,167,58,.55); color:#d4a73a; }
+.tel-rank { --rk:#8a8f98; display:inline-block; font-size:.7rem; font-weight:600; padding:.05rem .5rem; border-radius:999px; border:1px solid var(--rk); color:var(--rk); white-space:nowrap; }

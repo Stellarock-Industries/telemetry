@@ -75,3 +75,13 @@ select.btn { flex:1 1 12rem; min-width:0; }
 .card.ship-card .shiphead { margin-bottom:.1rem; }
 .mhead .shiphead { flex:1 1 auto; min-width:0; } .badge { white-space:nowrap; flex:none; } .crew { margin-top:.5rem; }
 @container (min-width: 14rem) { .member .dial-grid.cols4 { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+
+.update-bar { display:flex; flex-wrap:wrap; align-items:center; gap:.6rem; padding:.45rem 1rem; background:#1f1a08; border-bottom:1px solid #5a4812; color:var(--gold); font-size:.9rem; }
+.update-bar.required { background:#2a0f0f; border-color:#6a2222; color:#ff9b9b; }
+.update-bar .btn { padding:.25rem .8rem; }
+
+.me-chip { display:inline-flex; align-items:center; gap:.4rem; font-size:.8rem; color:var(--muted); padding:.15rem .6rem; border:1px solid var(--line); border-radius:999px; max-width:34rem; overflow:hidden; white-space:nowrap; }
+.me-chip b { color:var(--text); font-weight:600; overflow:hidden; text-overflow:ellipsis; }
+.filters { display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:1rem; } .filters select { flex:0 1 14rem; }
+.pdot { display:inline-block; width:.6rem; height:.6rem; border-radius:50%; background:#5b6470; margin-right:.45rem; } .pdot.game { background:var(--ok); } .pdot.site { background:var(--gold); }
+.member.web .mname { font-size:.95rem; }

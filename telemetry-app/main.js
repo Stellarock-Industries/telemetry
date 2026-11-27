@@ -7,11 +7,13 @@ const { Uploader } = require('./src/uploader');
 const { normalizeSiteUrl, parseToken } = require('./src/signing');
 const gameCfg = require('./src/gameCfg');
 const schemaFetch = require('./src/schemaFetch');
+const gameEnv = require('./src/gameEnv');
+const { Updater } = require('./src/updater');
 
 if (!app.requestSingleInstanceLock()) { app.quit(); }
 app.enableSandbox();
 
-let win = null, settings, game, uploader;
+let win = null, settings, game, uploader, updater;
 const status = { game: { game: 'waiting', text: 'Waiting for Star Citizen…' }, site: { ok: false, text: 'Not linked yet' }, prefs: null, user: '' };
 let lastState = {}, events = [];
 
@@ -40,12 +42,28 @@ function startServices() {
   game.on('events', (e) => { events = [...e.map((x) => ({ ...x, t: Date.now() })), ...events].slice(0, 30); uploader.pushEvents(e); });
   uploader.on('status', (s) => { status.site = s; send('status', status); });
   uploader.on('prefs', (p) => { status.prefs = p; send('status', status); });
+  uploader.on('update-info', (u) => updater && updater.noteSite(u));
+  uploader.on('me', (m) => { status.me = m; status.user = m.name; send('status', status); });
+  // Self-update: installed (NSIS) builds update themselves from GitHub Releases; the portable build / source runs only get a notice.
+  let au = null; const auto = app.isPackaged && process.platform === 'win32' && !process.env.PORTABLE_EXECUTABLE_FILE;
+  if (auto) { try { au = require('electron-updater').autoUpdater; } catch { au = null; } }
+  updater = new Updater({ currentVersion: app.getVersion(), autoUpdater: au, auto });
+  updater.on('change', (s) => send('update', s)); updater.init();
+  const housekeeping = () => { updater.check(); if (settings.data.siteUrl && settings.getToken()) uploader.hello().catch(() => {}); };   // hello also tells us the newest version
+  setTimeout(housekeeping, 8000); setInterval(housekeeping, 30 * 60 * 1000);
   uploader.start(); game.start();
   setInterval(() => send('state', { state: lastState, events, connected: status.game.game === 'connected' }), 250);   // UI refresh rate, independent of the 50 ms stream
 }
 function restartGame() { game.stop(); game.schemaDir = schemaDir(); game.start(); }
 
 function registerIpc() {
+  ipcMain.handle('update:get', () => updater.state);
+  ipcMain.handle('update:check', async () => { await updater.check(); try { await uploader.hello(); } catch { /* not linked yet */ } return updater.state; });
+  ipcMain.handle('update:install', () => ({ ok: updater.install() }));
+  ipcMain.handle('update:download', () => { const o = normalizeSiteUrl(settings.data.siteUrl); if (!o) return { ok: false, error: 'Enter your website address first.' }; shell.openExternal(o + '/guide/telemetry/#download'); return { ok: true }; });
+  ipcMain.handle('env:status', () => gameEnv.status());
+  ipcMain.handle('env:set', async () => { const r = await gameEnv.set(); return { ...r, status: await gameEnv.status() }; });
+  ipcMain.handle('env:remove', async () => { const r = await gameEnv.remove(); return { ...r, status: await gameEnv.status() }; });
   ipcMain.handle('app:info', () => ({ version: app.getVersion(), schemaDir: schemaDir(), settings: settings.view(), status }));
   ipcMain.handle('settings:save', async (_e, patch) => {
     if (patch.siteUrl !== undefined && patch.siteUrl !== '' && !normalizeSiteUrl(patch.siteUrl)) return { ok: false, error: 'The site address must start with https://' };
@@ -57,10 +75,10 @@ function registerIpc() {
     settings.setToken(token || ''); uploader.clearFatal(); uploader.prefs = null; return { ok: true, settings: settings.view() };
   });
   ipcMain.handle('site:test', async () => {
-    try { uploader.clearFatal(); const r = await uploader.hello(); status.user = r.user; status.prefs = r.prefs; status.site = { ok: true, text: 'Linked as ' + r.user }; send('status', status); return { ok: true, user: r.user, prefs: r.prefs }; }
+    try { uploader.clearFatal(); const r = await uploader.hello(); status.user = r.user; status.prefs = r.prefs; if (r.me && r.me.name) status.me = r.me; status.site = { ok: true, text: 'Linked as ' + r.user }; send('status', status); return { ok: true, user: r.user, prefs: r.prefs }; }
     catch (e) { return { ok: false, error: e.message }; }
   });
-  ipcMain.handle('roster:get', async () => { try { const r = await uploader.roster(); return { ok: true, members: r.members || [], ships: r.ships || [], myKey: r.my_key || null }; } catch (e) { return { ok: false, error: /unknown type/i.test(e.message) ? 'Your website is running an older version that cannot list online members yet. Ask a leader to update the site (src/telemetry.php and public/api/telemetry/index.php).' : e.message }; } });
+  ipcMain.handle('roster:get', async () => { try { const r = await uploader.roster(); return { ok: true, members: r.members || [], ships: r.ships || [], myKey: r.my_key || null, web: r.web || [], divisions: r.divisions || [], teams: r.teams || [] }; } catch (e) { return { ok: false, error: /unknown type/i.test(e.message) ? 'Your website is running an older version that cannot list online members yet. Ask a leader to update the site (src/telemetry.php and public/api/telemetry/index.php).' : e.message }; } });
   ipcMain.handle('prefs:save', async (_e, prefs) => {
     try { const r = await uploader.setPrefs(prefs); status.prefs = r.prefs; send('status', status); return { ok: true, prefs: r.prefs }; } catch (e) { return { ok: false, error: e.message }; }
   });

@@ -158,5 +158,39 @@ async function t(name, fn) { try { await fn(); console.log('PASS ' + name); } ca
     if (!fs.existsSync(site)) return;                                    // the app was unzipped on its own
     for (const [a, b] of [['js/tel-ui.js', 'renderer/tel-ui.js'], ['css/tel-ui.css', 'renderer/tel-ui.css']]) assert.strictEqual(fs.readFileSync(path.join(site, a), 'utf8'), fs.readFileSync(path.join(__dirname, '..', b), 'utf8'), a + ' differs from the app copy');
   });
+  await t('version compare', () => {
+    const { cmp } = require('../src/version');
+    assert.strictEqual(cmp('1.0.12', '1.0.9'), 1); assert.strictEqual(cmp('1.0.0', '1.0'), 0); assert.strictEqual(cmp('v1.2', '1.10'), -1);
+  });
+  await t('updater (installed build): site hint triggers a check, then download -> ready -> install', () => {
+    const { EventEmitter } = require('events'); const { Updater } = require('../src/updater');
+    const au = new EventEmitter(); let checks = 0, installed = null; au.checkForUpdates = async () => { checks++; }; au.quitAndInstall = (a, b) => { installed = [a, b]; };
+    const u = new Updater({ currentVersion: '1.0.3', autoUpdater: au, auto: true }); u.init(); assert.strictEqual(au.autoDownload, true);
+    u.noteSite({ latest: '1.0.9', min: '1.0.5' }); assert.strictEqual(checks, 1); assert.strictEqual(u.state.required, true);
+    au.emit('update-available', { version: '1.0.9' }); au.emit('download-progress', { percent: 41.6 }); assert.strictEqual(u.state.percent, 42); assert.strictEqual(u.state.state, 'downloading');
+    assert.strictEqual(u.install(), false);
+    au.emit('update-downloaded', { version: '1.0.9' }); assert.strictEqual(u.state.state, 'ready'); assert.strictEqual(u.install(), true); assert.deepStrictEqual(installed, [true, true]);
+    au.emit('error', new Error('net down\nstack')); assert.strictEqual(u.state.state, 'ready');                       // a failed re-check never loses a downloaded update
+  });
+  await t('updater (portable): only notifies', () => {
+    const { Updater } = require('../src/updater'); const u = new Updater({ currentVersion: '1.0.3', auto: false }); u.init();
+    u.noteSite({ latest: '1.0.9' }); assert.strictEqual(u.state.state, 'available'); assert.strictEqual(u.install(), false);
+    u.noteSite({ latest: '1.0.3' }); assert.strictEqual(u.state.state, 'uptodate');
+  });
+  await t('GRPC_CLIENT_SERVER_ENABLED: only the fixed name/value is ever passed to Windows', async () => {
+    const env = require('../src/gameEnv'); const calls = [];
+    const exec = (f, a, o, cb) => { calls.push([f, a]); cb(null, f === 'reg' && a[0] === 'query' ? '\r\nHKEY_CURRENT_USER\\Environment\r\n    GRPC_CLIENT_SERVER_ENABLED    REG_SZ    true\r\n' : '', ''); };
+    assert.deepStrictEqual(await env.set({ exec, platform: 'win32' }), { ok: true }); assert.deepStrictEqual(calls[0], ['setx', ['GRPC_CLIENT_SERVER_ENABLED', 'true']]);
+    const st = await env.status({ exec, platform: 'win32', env: {} }); assert.strictEqual(st.set, true); assert.strictEqual(st.inThisApp, false);
+    await env.remove({ exec, platform: 'win32' }); assert.deepStrictEqual(calls[2], ['reg', ['delete', 'HKCU\\Environment', '/v', 'GRPC_CLIENT_SERVER_ENABLED', '/f']]);
+    assert.strictEqual((await env.status({ platform: 'linux' })).supported, false); assert.strictEqual((await env.set({ platform: 'linux' })).ok, false);
+    const none = await env.status({ exec: (f, a, o, cb) => cb(new Error('x'), '', 'not found'), platform: 'win32', env: {} }); assert.strictEqual(none.set, false);
+  });
+  await t('uploader: 426 stops uploads and passes the update info on', async () => {
+    const infos = []; const up = new Uploader({ getConfig: () => ({ siteUrl: 'https://x.test', token: 'sctd1.1.' + 'a'.repeat(48), mode: 'all' }), post: async () => ({ status: 426, headers: {}, json: { error: 'too old', update: { latest: '1.0.9', min: '1.0.5' } } }) });
+    up.on('update-info', (u) => infos.push(u)); let st = null; up.on('status', (s) => { st = s; });
+    await assert.rejects(() => up.hello()); up.fail(Object.assign(new Error('too old'), { status: 426, fatal: true }));
+    assert.deepStrictEqual(infos[0], { latest: '1.0.9', min: '1.0.5' }); assert.strictEqual(st.fatal, true);
+  });
   console.log(failed ? '\n' + failed + ' FAILED' : '\nALL PASSED'); process.exit(failed ? 1 : 0);
 })();

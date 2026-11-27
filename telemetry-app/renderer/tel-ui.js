@@ -96,6 +96,16 @@
   function playerStrip(a) { a = a || {}; return pillRow([stancePill(a.loco), rolePill(a.seat_role), uecPill(a.uec)]); }
 
   /* ------------------------------------------------------------------ bars */
+  /** Division + team chips for a member ({division, teams}); null when there is nothing to show. */
+  function chips(m) {
+    const w = el('div', 'tel-chips'); if (m.division) w.appendChild(el('span', 'tel-chip div', m.division));
+    (m.teams || []).forEach(function (t) { w.appendChild(el('span', 'tel-chip', t)); });
+    return w.childNodes.length ? w : null;
+  }
+  /** Rank pill; the colour comes from the site's rank settings and is applied through the CSSOM (allowed by a strict CSP). */
+  function rank(name, color) {
+    const p = el('span', 'tel-rank', name); if (/^#[0-9a-f]{6}$/i.test(String(color || ''))) p.style.setProperty('--rk', color); return p;
+  }
   function hpBar(v) {
     if (!ok(v)) return null; var p = Math.max(0, Math.min(100, v));
     var w = el('div', 'hpbar ' + (p >= 66 ? 'hp-ok' : p >= 33 ? 'hp-warn' : 'hp-bad')); w.setAttribute('role', 'img'); w.setAttribute('aria-label', 'Health ' + Math.round(p) + '%'); w.title = 'Health ' + Math.round(p) + '%';
@@ -282,7 +292,7 @@
 
   var T = { el: el, svg: svg, num: num, label: label, tidy: tidy, ico: ico, shipInfo: shipInfo, weaponName: weaponName, dist: dist,
     pill: pill, stancePill: stancePill, rolePill: rolePill, uecPill: uecPill, pillRow: pillRow, playerStrip: playerStrip,
-    hpBar: hpBar, meter: meter, dial: dial, dialGrid: dialGrid, vitalDials: vitalDials, bodyDials: bodyDials, envDials: envDials, lungs: lungs,
+    chips: chips, rank: rank, hpBar: hpBar, meter: meter, dial: dial, dialGrid: dialGrid, vitalDials: vitalDials, bodyDials: bodyDials, envDials: envDials, lungs: lungs,
     shipHead: shipHead, shipPanel: shipPanel, flightPanel: flightPanel, led: led, ledList: ledList, annunciators: annunciators, toggles: toggles, weaponPanel: weaponPanel,
     tags: tags, doors: doors, eventList: eventList, memberBody: memberBody, crewRow: crewRow, tag: tag };
   if (typeof module !== 'undefined' && module.exports) module.exports = T;

@@ -21,20 +21,30 @@ function memberCard(m, mine) {
   const v = m.view || {}, c = el('div', 'card member' + (m.key && m.key === mine ? ' with-me' : ''));
   const head = el('div', 'mhead'); head.appendChild(el('span', 'avatar', initials(m.name)));
   const t = el('div', 'mtitle'), n = el('div', 'mname'); n.appendChild(el('span', 'dot')); n.appendChild(document.createTextNode(m.name + (m.me ? ' (you)' : '')));
-  t.appendChild(n); if (m.rank) t.appendChild(el('div', 'muted small', m.rank));
+  t.appendChild(n); if (m.rank) { const rr = el('div', 'rankline'); rr.appendChild(T.rank(m.rank, m.rank_color)); t.appendChild(rr); }
+  const ch = T.chips(m); if (ch) t.appendChild(ch);
   const hp = v.vitals && T.hpBar(v.vitals.health); if (hp) t.appendChild(hp);      // health as a bar under the name
   head.appendChild(t); c.appendChild(head); c.appendChild(T.memberBody(v));
   return c;
 }
-async function loadOrg() {
-  const r = await window.sct.roster(), msg = $('org-msg');
-  if (!r.ok) { msg.hidden = false; msg.textContent = 'Could not load the org list: ' + r.error + (/https|token/i.test(r.error) ? ' — check Setup.' : ''); return; }
-  msg.hidden = true; const grid = $('org-grid'); grid.textContent = '';
-  r.members.forEach((m) => grid.appendChild(memberCard(m, r.myKey)));
-  if (!r.members.length) grid.appendChild(el('div', 'muted', 'Nobody is sharing right now.'));
-  const oc = $('orgCount'); oc.hidden = !r.members.length; oc.textContent = r.members.length;
+let orgLast = null;
+function fillSel(sel, label, vals) { const cur = sel.value; sel.textContent = ''; const o = el('option', '', label); o.value = ''; sel.appendChild(o); vals.forEach((v) => { const x = el('option', '', v); x.value = v; sel.appendChild(x); }); sel.value = vals.includes(cur) ? cur : ''; }
+const orgKeep = (m) => (!$('orgDiv').value || m.division === $('orgDiv').value) && (!$('orgTeam').value || (m.teams || []).includes($('orgTeam').value));
+function webCard(m) {
+  const c = el('div', 'card member web' + (m.me ? ' with-me' : '')), head = el('div', 'mhead'); head.appendChild(el('span', 'avatar', initials(m.name)));
+  const t = el('div', 'mtitle'), n = el('div', 'mname'); n.appendChild(el('span', 'pdot site')); n.appendChild(document.createTextNode(m.name + (m.me ? ' (you)' : ''))); t.appendChild(n);
+  const rr = el('div', 'rankline'); rr.appendChild(T.rank(m.rank, m.rank_color)); t.appendChild(rr); const ch = T.chips(m); if (ch) t.appendChild(ch);
+  head.appendChild(t); c.appendChild(head); return c;
+}
+function renderOrg(r) {
+  const all = r.members, members = all.filter(orgKeep), web = (r.web || []).filter(orgKeep);
+  const grid = $('org-grid'); grid.textContent = '';
+  members.forEach((m) => grid.appendChild(memberCard(m, r.myKey)));
+  if (!members.length) grid.appendChild(el('div', 'muted', all.length ? 'Nobody matches this filter.' : 'Nobody is in game and sharing right now.'));
+  const wg = $('org-web-grid'); wg.textContent = ''; web.forEach((m) => wg.appendChild(webCard(m))); $('org-web').hidden = !web.length;
+  const oc = $('orgCount'), total = all.length + (r.web || []).length; oc.hidden = !total; oc.textContent = total;
   const sg = $('org-ship-grid'); sg.textContent = ''; $('org-ships').hidden = !r.ships.length;
-  const byId = {}; r.members.forEach((m) => { byId[m.id] = m; });
+  const byId = {}; all.forEach((m) => { byId[m.id] = m; });
   r.ships.forEach((s) => {
     const c = el('div', 'card ship-card' + (s.with_me ? ' with-me' : '')); const h = el('div', 'mhead');
     h.appendChild(T.shipHead(s.ship)); if (s.with_me) h.appendChild(el('span', 'badge', 'Your ship')); c.appendChild(h);
@@ -43,14 +53,30 @@ async function loadOrg() {
     sg.appendChild(c);
   });
 }
+async function loadOrg() {
+  const r = await window.sct.roster(), msg = $('org-msg');
+  if (!r.ok) { msg.hidden = false; msg.textContent = 'Could not load the org list: ' + r.error + (/https|token/i.test(r.error) ? ' — check Setup.' : ''); return; }
+  msg.hidden = true; orgLast = r;
+  fillSel($('orgDiv'), 'All divisions', r.divisions || []); fillSel($('orgTeam'), 'All teams', (r.teams || []).map((t) => t.name));
+  $('org-filters').hidden = !(r.divisions || []).length && !(r.teams || []).length;
+  renderOrg(r);
+}
+$('orgDiv').addEventListener('change', () => orgLast && renderOrg(orgLast)); $('orgTeam').addEventListener('change', () => orgLast && renderOrg(orgLast));
 
 function say(id, text, ok) { const m = $(id); m.textContent = text || ''; m.className = 'msg ' + (ok ? 'ok' : 'bad'); }
 
+function renderMe(me) {
+  const c = $('me-chip'); c.textContent = ''; if (!me || !me.name) { c.hidden = true; return; }
+  c.hidden = false; c.appendChild(el('b', '', me.name)); if (me.rank) c.appendChild(T.rank(me.rank.name, me.rank.color));
+  const extra = [me.division].concat(me.teams || []).filter(Boolean).join(' · '); if (extra) c.appendChild(el('span', '', extra));
+  c.title = 'Rank, division and teams are set by the site, not by this app.' + (me.perms && me.perms.length ? ' Permissions: ' + me.perms.length : '');
+}
 function renderStatus(s) {
   const g = $('pill-game'); g.textContent = 'Game: ' + (s.game.game === 'connected' ? 'connected' : s.game.game === 'schema' ? 'schema missing' : 'waiting'); g.className = 'pill ' + (s.game.game === 'connected' ? 'ok' : s.game.game === 'schema' ? 'bad' : '');
   g.title = s.game.text || '';
   const w = $('pill-site'); w.textContent = 'Site: ' + (s.site.text || ''); w.className = 'pill ' + (s.site.ok ? 'ok' : s.site.fatal ? 'bad' : ''); w.title = s.site.text || '';
   if (s.prefs) { prefs = s.prefs; renderPrefs(); }
+  renderMe(s.me);
   const n = $('dash-empty');
   if (s.game.game === 'schema') { n.hidden = false; n.textContent = 'The game schema files are missing. Open Setup → “Download schema” (or put api.proto and types.proto in the schema folder).'; }
   else if (s.game.game !== 'connected') { n.hidden = false; n.textContent = 'Waiting for Star Citizen. Start the game with telemetry enabled (Setup → step 3), then log in to the Persistent Universe.'; }
@@ -119,5 +145,23 @@ $('pickDir').addEventListener('click', async () => { await window.sct.pickGameDi
 $('cfgOn').addEventListener('click', async () => { const r = await window.sct.cfgSet(true); $('cfgState').textContent = r.ok ? 'Enabled. Restart Star Citizen for it to take effect.' : r.error; });
 $('cfgOff').addEventListener('click', async () => { const r = await window.sct.cfgSet(false); $('cfgState').textContent = r.ok ? 'Disabled.' : r.error; });
 
+// ---- updates ----
+function renderUpdate(u) {
+  const bar = $('update-bar'), btn = $('update-btn'), t = $('update-text'); btn.hidden = true; btn.onclick = null;
+  let text = '', show = true;
+  if (u.state === 'ready') { text = 'Update v' + u.latest + ' is ready.'; btn.textContent = 'Restart & update'; btn.hidden = false; btn.onclick = () => window.sct.updateInstall(); }
+  else if (u.state === 'downloading') text = 'Downloading update v' + u.latest + '… ' + u.percent + '%';
+  else if (u.state === 'available') { text = 'A new version (v' + u.latest + ') is available.'; btn.textContent = 'Download'; btn.hidden = false; btn.onclick = () => window.sct.updateDownload(); }
+  else show = false;
+  if (u.required && u.state !== 'ready' && u.state !== 'downloading') { text = (text ? text + ' ' : '') + 'This version is too old for the website — update to keep sharing.'; show = true; if (btn.hidden) { btn.textContent = u.mode === 'auto' ? 'Check now' : 'Download'; btn.hidden = false; btn.onclick = () => (u.mode === 'auto' ? window.sct.updateCheck() : window.sct.updateDownload()); } }
+  bar.hidden = !show; bar.classList.toggle('required', !!u.required); t.textContent = text;
+  const s = { idle: 'Not checked yet.', checking: 'Checking for updates…', uptodate: 'You have the latest version (v' + u.current + ').', downloading: 'Downloading v' + u.latest + '… ' + u.percent + '%', ready: 'v' + u.latest + ' is downloaded and will install when you restart.', available: 'v' + u.latest + ' is available — this copy cannot update itself, download it from the website.', error: 'Could not check for updates' + (u.message ? ' (' + u.message + ')' : '') + '.' }[u.state] || '';
+  $('updState').textContent = s + (u.mode === 'manual' && u.state !== 'available' ? ' This copy (portable or unpackaged) does not update itself; the website tells it when a newer version exists.' : '');
+}
+$('updCheck').addEventListener('click', async () => { say('updMsg', 'Checking…', true); const u = await window.sct.updateCheck(); renderUpdate(u); say('updMsg', '', true); });
+async function refreshEnv() { const e = await window.sct.envStatus(); $('envState').className = 'msg'; $('envState').textContent = !e.supported ? 'Windows only.' : e.set ? 'Set ✓' + (e.inThisApp ? '' : ' — restart the RSI Launcher and the game so they pick it up') : 'Not set'; $('envOn').disabled = $('envOff').disabled = !e.supported; }
+$('envOn').addEventListener('click', async () => { const r = await window.sct.envSet(); if (r.ok) { await refreshEnv(); say('envState', 'Set ✓ — now close the RSI Launcher and the game completely, then open them again.', true); } else say('envState', r.error, false); });
+$('envOff').addEventListener('click', async () => { const r = await window.sct.envRemove(); if (r.ok) refreshEnv(); else say('envState', r.error, false); });
+window.sct.onUpdate(renderUpdate); window.sct.updateGet().then(renderUpdate); refreshEnv();
 window.sct.onStatus(renderStatus); window.sct.onState(renderDash);
 window.sct.info().then((i) => { $('ver').textContent = 'v' + i.version; applySettings(i.settings); renderStatus(i.status); refreshCfg(); if (!i.settings.hasToken) document.querySelector('[data-tab=setup]').click(); });

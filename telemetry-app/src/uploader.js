@@ -49,9 +49,11 @@ class Uploader extends EventEmitter {
   }
   async send(body) {
     const r = await this.request(body);
+    if (r.json && r.json.update) this.emit('update-info', r.json.update);
+    if (r.status === 200 && r.json && r.json.me && r.json.me.name) { this.me = r.json.me; this.emit('me', this.me); }   // rank, permissions, division, teams - always read from the site     // newest / oldest-allowed version, from the site
     if (r.status === 200) { if (r.json.prefs) { this.prefs = r.json.prefs; this.emit('prefs', this.prefs); } this.backoff = 0; return r.json; }
     const err = new Error(r.json.error || ('HTTP ' + r.status)); err.status = r.status; err.json = r.json;
-    if (r.status === 401) err.fatal = true;
+    if (r.status === 401 || r.status === 426) err.fatal = true;            // 426 = this version is too old for the site
     if (r.status === 429) err.retryAfter = Number(r.headers['retry-after']) || 10;
     throw err;
   }
